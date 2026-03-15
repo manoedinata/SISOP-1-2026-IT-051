@@ -17,45 +17,40 @@ BEGIN {
     FS = ","
 }
 
+# Skip header
+NR == 1 {
+    next
+}
+
 # Soal a: Hitung jumlah penumpang
 soal == "a" {
-    if (NR > 1) { # Skip header
-        count++
-    }
+    count++
 }
 
 # Soal b: Berapa banyak gerbong unik yang ada di KANJ?
 soal == "b" {
-    if (NR > 1) { # Skip header
-        gerbong[$2] = 1
-    }
+    gerbong[$2] = 1
 }
 
 # Soal c: Cari penumpang tertua
 soal == "c" {
-    if (NR > 1) {
-        # Bandingkan usia penumpang saat ini dengan usia tertua yang sudah ditemukan
-        if (oldest_age == "" || $2 > oldest_age) {
-            oldest_age = $2
-            oldest_passenger = $1
-        }
+    # Bandingkan usia penumpang saat ini dengan usia tertua yang sudah ditemukan
+    if (oldest_age == "" || $2 > oldest_age) {
+        oldest_age = $2
+        oldest_passenger = $1
     }
 }
 
 # Soal d: Rata-rata usia penumpang
 soal == "d" {
-    if (NR > 1) {
-        total_age += $2
-        total_passengers++
-    }
+    total_age += $2
+    total_passengers++
 }
 
 # Soal e: Jumlah penumpang Business Class
 soal == "e" {
-    if (NR > 1) {
-        if ($3 == "Business") {
-            business_count++
-        }
+    if ($3 == "Business") {
+        business_count++
     }
 }
 
