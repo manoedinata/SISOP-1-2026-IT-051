@@ -22,10 +22,13 @@ NR == 1 {
     next
 }
 
-# Soal a: Hitung jumlah penumpang
-soal == "a" {
-    count++
+# Increment total_passengers pada setiap baris data penumpang
+{
+    total_passengers++
 }
+
+# Soal a: Hitung jumlah penumpang
+# Sudah dilakukan di atas dengan increment total_passengers
 
 # Soal b: Berapa banyak gerbong unik yang ada di KANJ?
 soal == "b" {
@@ -44,7 +47,6 @@ soal == "c" {
 # Soal d: Rata-rata usia penumpang
 soal == "d" {
     total_age += $2
-    total_passengers++
 }
 
 # Soal e: Jumlah penumpang Business Class
@@ -56,7 +58,7 @@ soal == "e" {
 
 END {
     if (soal == "a") {
-        print "Jumlah seluruh penumpang KANJ adalah " count
+        print "Jumlah seluruh penumpang KANJ adalah " total_passengers
     }
 
     if (soal == "b") {
