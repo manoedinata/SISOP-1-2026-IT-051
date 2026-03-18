@@ -1,5 +1,8 @@
 # SISOP Modul 1
 
+<details>
+<summary>Daftar Isi</summary>
+
 - [SISOP Modul 1](#sisop-modul-1)
   - [Soal 1: KANJ](#soal-1-kanj)
     - [Screenshot](#screenshot)
@@ -25,6 +28,8 @@
       - [Ekstrak informasi](#ekstrak-informasi)
       - [Hitung Titik Tengah](#hitung-titik-tengah)
       - [Hasil Akhir](#hasil-akhir)
+
+</details>
 
 ## Soal 1: KANJ
 
