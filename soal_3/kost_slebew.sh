@@ -1,9 +1,7 @@
-#!/bin/bash
-# Hendra Manudinata
-# 5027251051 - Asisten SCRA
+# Hendra Manudinata - 5027251051
 
-# Get the directory of the current script
-# https://askubuntu.com/questions/893911/when-writing-a-bash-script-how-do-i-get-the-absolute-path-of-the-location-of-th
+### Mendapatkan direktori tempat script ini berada
+### Ref: https://askubuntu.com/questions/893911/when-writing-a-bash-script-how-do-i-get-the-absolute-path-of-the-location-of-th
 SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 
 ### INITIALIZE WORKTREE
@@ -15,16 +13,35 @@ if [ ! -f "$DB_FILE" ]; then
     echo "Nama,Kamar,Harga Sewa,Tanggal Masuk,Status" >"$DB_FILE"
 fi
 
-LAPORAN_FILE="$SCRIPT_DIR/rekap/laporan_bulanan.txt"
-
 ### INITIALIZE SAMPAH
 SAMPAH_FILE="$SCRIPT_DIR/sampah/history_hapus.csv"
 if [ ! -f "$SAMPAH_FILE" ]; then
     echo "Nama,Kamar,Harga Sewa,Tanggal Masuk,Status" >"$SAMPAH_FILE"
 fi
 
+### INITIALIZE LAPORAN
+LAPORAN_FILE="$SCRIPT_DIR/rekap/laporan_bulanan.txt"
+
 ### INITIALIZE LOG
 LOG_FILE="$SCRIPT_DIR/log/tagihan.log"
+
+##### FUNGSI HELPER AWK #####
+AWK_UTILS='
+# Fungsi format Rupiah di dalam AWK
+function format_rp(angka) {
+    if (angka == 0 || angka == "") return "Rp0"
+    str_angka = angka ""
+    len = length(str_angka)
+    hasil = ""
+    for(i=1; i<=len; i++) {
+        hasil = hasil substr(str_angka, i, 1)
+        if ((len - i) % 3 == 0 && i != len) {
+            hasil = hasil "."
+        }
+    }
+    return "Rp" hasil
+}
+'
 
 ##### FUNCTIONS #####
 tambah_penghuni() {
@@ -39,6 +56,7 @@ tambah_penghuni() {
     while true; do
         read -p "Masukkan Kamar: " kamar
         # Mengecek apakah nomor kamar sudah ada di kolom ke-2 pada file CSV
+        # contoh regex: ^[^,]*,nomorkamar,
         if grep -q "^[^,]*,${kamar}," "$DB_FILE"; then
             echo -e "\n[!] Kamar $kamar sudah terisi! Silakan pilih kamar lain.\n"
         else
@@ -83,11 +101,12 @@ tambah_penghuni() {
     # Input Status & Validasi
     while true; do
         read -p "Masukkan Status Awal (Aktif/Menunggak): " status
+        status=${status,,} # jadikan lowercase
 
-        if [[ "$status" == "Aktif" || "$status" == "Menunggak" ]]; then
+        if [[ "$status" == "aktif" || "$status" == "menunggak" ]]; then
             break
         else
-            echo -e "\n[!] Status tidak valid! Harap ketik 'Aktif' atau 'Menunggak' (perhatikan huruf kapital).\n"
+            echo -e "\n[!] Status tidak valid! Harap ketik 'Aktif' atau 'Menunggak' (huruf kapital dibebaskan).\n"
         fi
     done
 
@@ -95,83 +114,71 @@ tambah_penghuni() {
     echo "$nama,$kamar,$harga,$tanggal,$status" >>"$DB_FILE"
 
     echo ""
-    echo "[√] Penghuni \"$nama\" berhasil ditambahkan ke Kamar $kamar dengan status $status."
+    echo "[√] Penghuni \"$nama\" berhasil ditambahkan ke Kamar $kamar dengan status ${status^}." # ${status^} untuk kapitalisasi pertama
     echo ""
 }
 
 hapus_penghuni() {
+    clear
     echo "================================================="
     echo "                 HAPUS PENGHUNI                  "
     echo "================================================="
 
     read -p "Masukkan nama penghuni yang akan dihapus: " nama_hapus
 
-    # Cari data penghuni di database menggunakan awk (mencocokkan kolom ke-1/Nama)
-    # Kita ambil barisnya jika ditemukan
-    data_match=$(awk -F, -v nama="$nama_hapus" '$1 == nama {print $0}' "$DB_FILE")
+    # Cek apakah nama ada di database
+    if grep -q "^${nama_hapus}," "$DB_FILE"; then
 
-    if [ -n "$data_match" ]; then
-        # Ambil tanggal hari ini untuk kolom "Tanggal Hapus"
         tanggal_hapus=$(date +%Y-%m-%d)
 
-        # Proses pemindahan ke riwayat
-        # (menggunakan echo "$data_match" untuk menangani jika ada lebih dari 1 baris nama sama)
-        echo "$data_match" | while IFS= read -r line; do
-            echo "$line,$tanggal_hapus" >>"$SAMPAH_FILE"
-        done
+        # Salin line dari db_file ke sampah_file
+        awk -F, -v nama="$nama_hapus" -v tgl="$tanggal_hapus" '$1 == nama {print $0","tgl}' "$DB_FILE" >>"$SAMPAH_FILE"
 
-        # Hapus data dari file utama (menyalin semua baris KECUALI yang namanya cocok ke file temporary, lalu menimpanya)
-        awk -F, -v nama="$nama_hapus" '$1 != nama' "$DB_FILE" >temp.csv && mv temp.csv "$DB_FILE"
+        # Hapus line dari db_file
+        # bisa juga pakai awk & mv, tapi sed lebih simpel
+        # awk -F, -v nama="$nama_hapus" '$1 != nama' "$DB_FILE" > laporan_temp.csv && mv laporan_temp.csv "$DB_FILE"
+        sed -i "/^${nama_hapus},/d" "$DB_FILE"
 
-        echo -e "\n[√] Data penghuni \"$nama_hapus\" berhasil diarsipkan ke $SAMPAH_FILE dan dihapus dari sistem.\n"
+        echo -e "\n[√] Data penghuni \"$nama_hapus\" berhasil diarsipkan ke $SAMPAH_FILE.\n"
     else
         # Jika nama tidak ditemukan
-        echo -e "\n[x] Data penghuni dengan nama \"$nama_hapus\" tidak ditemukan di sistem.\n"
+        echo -e "\n[x] Data penghuni \"$nama_hapus\" tidak ditemukan di sistem.\n"
     fi
 }
 
 tampilkan_penghuni() {
-    awk '
+    clear
+    awk "$AWK_UTILS"'
     BEGIN {
         # Set Field Separator menjadi koma
         FS=","
-        
+
         # Cetak Header Tabel
         print "=========================================================================="
         print "                       DAFTAR PENGHUNI KOST SLEBEW                        "
         print "=========================================================================="
         printf "%-3s | %-15s | %-7s | %-17s | %-10s\n", "No", "Nama", "Kamar", "Harga Sewa", "Status"
         print "--------------------------------------------------------------------------"
-        
+
         # Inisialisasi variabel penghitung
         total = 0
         aktif = 0
         menunggak = 0
     }
+
     NR > 1 {
         # Abaikan baris kosong jika ada
         if ($0 ~ /^[[:space:]]*$/) next 
-        
+
         total++
         if ($5 == "Aktif") aktif++
         if ($5 == "Menunggak") menunggak++
-        
-        # Logika manual untuk menambahkan titik pada ribuan (Format Rupiah)
-        harga = $3
-        len = length(harga)
-        harga_format = ""
-        for(i=1; i<=len; i++) {
-            harga_format = harga_format substr(harga, i, 1)
-            # Beri titik setiap kelipatan 3 dari belakang, kecuali di digit terakhir
-            if ((len - i) % 3 == 0 && i != len) {
-                harga_format = harga_format "."
-            }
-        }
-        harga_rp = "Rp" harga_format
 
-        # Cetak Baris Data (No, Nama, Kamar, Harga_Rp, Status)
-        printf "%-3d | %-15s | %-7s | %-17s | %-10s\n", total, $1, $2, harga_rp, $5
+        # Cetak Data
+        # (No, Nama, Kamar, Harga_Rp, Status)
+        printf "%-3d | %-15s | %-7s | %-17s | %-10s\n", total, $1, $2, format_rp($3), $5
     }
+
     END {
         # Cetak Footer Tabel
         print "--------------------------------------------------------------------------"
@@ -190,22 +197,18 @@ update_status() {
     read -p "Masukkan Nama Penghuni: " nama_update
 
     # Cek apakah nama ada di database
+    # format regex: ^nama,
     if ! grep -q "^${nama_update}," "$DB_FILE"; then
         echo -e "\n[x] Penghuni dengan nama \"$nama_update\" tidak ditemukan.\n"
-        read -p "Tekan [ENTER] untuk kembali ke menu..."
         return
     fi
 
     # Input status dengan pengecekan case-insensitive
     while true; do
         read -p "Masukkan Status Baru (Aktif/Menunggak): " status_baru
-        status_lower=$(echo "$status_baru" | tr '[:upper:]' '[:lower:]')
+        status_baru=${status_baru,,} # jadikan lowercase
 
-        if [ "$status_lower" == "aktif" ]; then
-            status_final="Aktif"
-            break
-        elif [ "$status_lower" == "menunggak" ]; then
-            status_final="Menunggak"
+        if [[ "$status_baru" == "aktif" || "$status_baru" == "menunggak" ]]; then
             break
         else
             echo -e "\n[!] Status tidak valid! Harap masukkan 'Aktif' atau 'Menunggak'.\n"
@@ -213,7 +216,8 @@ update_status() {
     done
 
     # Gunakan AWK untuk menimpa kolom ke-5 berdasarkan nama
-    awk -v nama="$nama_update" -v status="$status_final" '
+    # FS = Field Separator, OFS = Output Field Separator
+    awk -v nama="$nama_update" -v status="${status_baru^}" '
     BEGIN { FS=","; OFS="," }
     {
         if ($1 == nama) {
@@ -221,62 +225,72 @@ update_status() {
         }
         print $0
     }
-    ' "$DB_FILE" >temp.csv && mv temp.csv "$DB_FILE"
+    ' "$DB_FILE" >laporan_temp.csv && mv laporan_temp.csv "$DB_FILE"
 
-    echo -e "\n[√] Status $nama_update berhasil diubah menjadi: $status_final\n"
-    read -p "Tekan [ENTER] untuk kembali ke menu..."
+    echo -e "\n[√] Status $nama_update berhasil diubah menjadi: ${status_baru^}\n"
 }
 
 cetak_laporan() {
     clear
-    echo "================================================="
-    echo "             CETAK LAPORAN KEUANGAN              "
-    echo "================================================="
 
     # Gunakan AWK untuk menghitung total dan mencetaknya ke file
-    awk -v file_out="$LAPORAN_FILE" '
+    awk -v file_out="$LAPORAN_FILE" "$AWK_UTILS"'
     BEGIN {
         FS=","
         total_aktif = 0
         total_menunggak = 0
+        jumlah_kamar = 0
+        count_menunggak = 0
+        daftar_menunggak = ""
     }
-    
-    # Fungsi format Rupiah di dalam AWK
-    function format_rp(angka) {
-        if (angka == 0) return "0"
-        str_angka = angka ""
-        len = length(str_angka)
-        hasil = ""
-        for(i=1; i<=len; i++) {
-            hasil = hasil substr(str_angka, i, 1)
-            if ((len - i) % 3 == 0 && i != len) {
-                hasil = hasil "."
-            }
-        }
-        return "Rp" hasil
-    }
+
     NR > 1 {
-        if ($5 == "Aktif") total_aktif += $3
-        if ($5 == "Menunggak") total_menunggak += $3
-    }
-    END {
-        print "=================================================" > file_out
-        print "            LAPORAN KEUANGAN BULANAN             " > file_out
-        print "=================================================" > file_out
-        print "Total Pemasukan (Aktif)   : " format_rp(total_aktif) > file_out
-        print "Total Tunggakan (Menunggak): " format_rp(total_menunggak) > file_out
-        print "=================================================" > file_out
+        # Abaikan baris kosong jika ada
+        if ($0 ~ /^[[:space:]]*$/) next
+
+        jumlah_kamar++
         
-        # Tampilkan juga di terminal
-        print "[OK] Laporan berhasil dibuat dan disimpan di: " file_out
-        print ""
-        print "Total Pemasukan (Aktif)   : " format_rp(total_aktif)
-        print "Total Tunggakan (Menunggak): " format_rp(total_menunggak)
+        if ($5 == "Aktif") {
+            total_aktif += $3
+        } else if ($5 == "Menunggak") {
+            total_menunggak += $3
+            daftar_menunggak = daftar_menunggak "  - " $1 " (Kamar " $2 ")\n"
+            count_menunggak++
+        }
+    }
+
+    END {
+        # Siapkan teks laporan
+        laporan = ""
+        laporan = laporan "======================================\n"
+        laporan = laporan "          LAPORAN KEUANGAN            \n"
+        laporan = laporan "======================================\n"
+        laporan = laporan sprintf("%-24s: %s\n", "Total pemasukan (Aktif)", format_rp(total_aktif))
+        laporan = laporan sprintf("%-24s: %s\n", "Total tunggakan", format_rp(total_menunggak))
+        laporan = laporan sprintf("%-24s: %d\n", "Jumlah kamar terisi", jumlah_kamar)
+        laporan = laporan "-------------------------------------------------\n"
+        laporan = laporan "\n"
+        laporan = laporan "Daftar penghuni menunggak:\n"
+
+        # Cek apakah ada yang menunggak
+        if (count_menunggak == 0) {
+            laporan = laporan "  Tidak ada, yey!\n"
+        } else {
+            laporan = laporan daftar_menunggak
+        }
+        
+        laporan = laporan "=================================================\n"
+
+        # Simpan teks ke file
+        printf "%s", laporan > file_out
+        
+        # Tampilkan teks
+        printf "%s\n", laporan
+        print "[√] Laporan berhasil disimpan ke " file_out
     }
     ' "$DB_FILE"
 
     echo ""
-    read -p "Tekan [ENTER] untuk kembali ke menu..."
 }
 
 ##### END OF FUNCTIONS #####
@@ -321,15 +335,14 @@ EOF
 
             # Mendaftarkan jadwal baru
             # Format cron: menit jam * * * perintah
-            # 1. Kita ambil semua cron job yang sudah ada (jika ada),
-            # 2. lalu tambahkan baris baru untuk script kita, dan daftarkan ulang semuanya
+            #   1. ambil semua cron job yang sudah ada (jika ada),
+            #   2. lalu tambahkan baris baru untuk script kita, dan daftarkan ulang semuanya
             (
                 crontab -l 2>/dev/null
                 echo "$menit $jam * * * $CRON_CMD"
             ) | crontab -
 
-            # Jeda sebentar agar transisi kembali ke menu terlihat mulus seperti contoh gambar
-            sleep 1
+            read -p "Tekan [ENTER] untuk kembali ke menu..."
             ;;
         3)
             echo ""
