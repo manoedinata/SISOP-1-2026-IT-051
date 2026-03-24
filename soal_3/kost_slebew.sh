@@ -39,6 +39,7 @@ tambah_penghuni() {
     while true; do
         read -p "Masukkan Kamar: " kamar
         # Mengecek apakah nomor kamar sudah ada di kolom ke-2 pada file CSV
+        # contoh regex: ^[^,]*,nomorkamar,
         if grep -q "^[^,]*,${kamar}," "$DB_FILE"; then
             echo -e "\n[!] Kamar $kamar sudah terisi! Silakan pilih kamar lain.\n"
         else
@@ -100,33 +101,30 @@ tambah_penghuni() {
 }
 
 hapus_penghuni() {
+    clear
     echo "================================================="
     echo "                 HAPUS PENGHUNI                  "
     echo "================================================="
 
     read -p "Masukkan nama penghuni yang akan dihapus: " nama_hapus
 
-    # Cari data penghuni di database menggunakan awk (mencocokkan kolom ke-1/Nama)
-    # Kita ambil barisnya jika ditemukan
-    data_match=$(awk -F, -v nama="$nama_hapus" '$1 == nama {print $0}' "$DB_FILE")
+    # Cek apakah nama ada di database
+    if grep -q "^${nama_hapus}," "$DB_FILE"; then
 
-    if [ -n "$data_match" ]; then
-        # Ambil tanggal hari ini untuk kolom "Tanggal Hapus"
         tanggal_hapus=$(date +%Y-%m-%d)
 
-        # Proses pemindahan ke riwayat
-        # (menggunakan echo "$data_match" untuk menangani jika ada lebih dari 1 baris nama sama)
-        echo "$data_match" | while IFS= read -r line; do
-            echo "$line,$tanggal_hapus" >>"$SAMPAH_FILE"
-        done
+        # Salin line dari db_file ke sampah_file
+        awk -F, -v nama="$nama_hapus" -v tgl="$tanggal_hapus" '$1 == nama {print $0","tgl}' "$DB_FILE" >>"$SAMPAH_FILE"
 
-        # Hapus data dari file utama (menyalin semua baris KECUALI yang namanya cocok ke file temporary, lalu menimpanya)
-        awk -F, -v nama="$nama_hapus" '$1 != nama' "$DB_FILE" >temp.csv && mv temp.csv "$DB_FILE"
+        # Hapus line dari db_file
+        # bisa juga pakai awk & mv, tapi sed lebih simpel
+        # awk -F, -v nama="$nama_hapus" '$1 != nama' "$DB_FILE" > laporan_temp.csv && mv laporan_temp.csv "$DB_FILE"
+        sed -i "/^${nama_hapus},/d" "$DB_FILE"
 
-        echo -e "\n[√] Data penghuni \"$nama_hapus\" berhasil diarsipkan ke $SAMPAH_FILE dan dihapus dari sistem.\n"
+        echo -e "\n[√] Data penghuni \"$nama_hapus\" berhasil diarsipkan ke $SAMPAH_FILE.\n"
     else
         # Jika nama tidak ditemukan
-        echo -e "\n[x] Data penghuni dengan nama \"$nama_hapus\" tidak ditemukan di sistem.\n"
+        echo -e "\n[x] Data penghuni \"$nama_hapus\" tidak ditemukan di sistem.\n"
     fi
 }
 
@@ -135,31 +133,33 @@ tampilkan_penghuni() {
     BEGIN {
         # Set Field Separator menjadi koma
         FS=","
-        
+
         # Cetak Header Tabel
         print "=========================================================================="
         print "                       DAFTAR PENGHUNI KOST SLEBEW                        "
         print "=========================================================================="
         printf "%-3s | %-15s | %-7s | %-17s | %-10s\n", "No", "Nama", "Kamar", "Harga Sewa", "Status"
         print "--------------------------------------------------------------------------"
-        
+
         # Inisialisasi variabel penghitung
         total = 0
         aktif = 0
         menunggak = 0
     }
+
     NR > 1 {
         # Abaikan baris kosong jika ada
         if ($0 ~ /^[[:space:]]*$/) next 
-        
+
         total++
         if ($5 == "Aktif") aktif++
         if ($5 == "Menunggak") menunggak++
-        
-        # Logika manual untuk menambahkan titik pada ribuan (Format Rupiah)
+
+        # Format harga sewa ke format Rupiah (RpX.XXX.XXX)
         harga = $3
         len = length(harga)
         harga_format = ""
+
         for(i=1; i<=len; i++) {
             harga_format = harga_format substr(harga, i, 1)
             # Beri titik setiap kelipatan 3 dari belakang, kecuali di digit terakhir
@@ -167,11 +167,14 @@ tampilkan_penghuni() {
                 harga_format = harga_format "."
             }
         }
+
         harga_rp = "Rp" harga_format
 
-        # Cetak Baris Data (No, Nama, Kamar, Harga_Rp, Status)
+        # Cetak Data
+        # (No, Nama, Kamar, Harga_Rp, Status)
         printf "%-3d | %-15s | %-7s | %-17s | %-10s\n", total, $1, $2, harga_rp, $5
     }
+
     END {
         # Cetak Footer Tabel
         print "--------------------------------------------------------------------------"
@@ -190,6 +193,7 @@ update_status() {
     read -p "Masukkan Nama Penghuni: " nama_update
 
     # Cek apakah nama ada di database
+    # format regex: ^nama,
     if ! grep -q "^${nama_update}," "$DB_FILE"; then
         echo -e "\n[x] Penghuni dengan nama \"$nama_update\" tidak ditemukan.\n"
         read -p "Tekan [ENTER] untuk kembali ke menu..."
@@ -213,6 +217,7 @@ update_status() {
     done
 
     # Gunakan AWK untuk menimpa kolom ke-5 berdasarkan nama
+    # FS = Field Separator, OFS = Output Field Separator
     awk -v nama="$nama_update" -v status="$status_final" '
     BEGIN { FS=","; OFS="," }
     {
@@ -221,7 +226,7 @@ update_status() {
         }
         print $0
     }
-    ' "$DB_FILE" >temp.csv && mv temp.csv "$DB_FILE"
+    ' "$DB_FILE" >laporan_temp.csv && mv laporan_temp.csv "$DB_FILE"
 
     echo -e "\n[√] Status $nama_update berhasil diubah menjadi: $status_final\n"
     read -p "Tekan [ENTER] untuk kembali ke menu..."
@@ -240,7 +245,7 @@ cetak_laporan() {
         total_aktif = 0
         total_menunggak = 0
     }
-    
+
     # Fungsi format Rupiah di dalam AWK
     function format_rp(angka) {
         if (angka == 0) return "0"
@@ -255,10 +260,12 @@ cetak_laporan() {
         }
         return "Rp" hasil
     }
+
     NR > 1 {
         if ($5 == "Aktif") total_aktif += $3
         if ($5 == "Menunggak") total_menunggak += $3
     }
+
     END {
         print "=================================================" > file_out
         print "            LAPORAN KEUANGAN BULANAN             " > file_out
@@ -321,15 +328,14 @@ EOF
 
             # Mendaftarkan jadwal baru
             # Format cron: menit jam * * * perintah
-            # 1. Kita ambil semua cron job yang sudah ada (jika ada),
-            # 2. lalu tambahkan baris baru untuk script kita, dan daftarkan ulang semuanya
+            #   1. ambil semua cron job yang sudah ada (jika ada),
+            #   2. lalu tambahkan baris baru untuk script kita, dan daftarkan ulang semuanya
             (
                 crontab -l 2>/dev/null
                 echo "$menit $jam * * * $CRON_CMD"
             ) | crontab -
 
-            # Jeda sebentar agar transisi kembali ke menu terlihat mulus seperti contoh gambar
-            sleep 1
+            read -p "Tekan [ENTER] untuk kembali ke menu..."
             ;;
         3)
             echo ""
