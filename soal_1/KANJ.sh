@@ -32,7 +32,7 @@ NR == 1 {
 
 # Soal b: Berapa banyak gerbong unik yang ada di KANJ?
 soal == "b" {
-    gerbong[$2] = 1
+    gerbong[$4] = 1
 }
 
 # Soal c: Cari penumpang tertua

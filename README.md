@@ -99,7 +99,7 @@ Untuk menghitung jumlah gerbong unik, kita bisa menggunakan sebuah array untuk m
 
 ```
 soal == "b" {
-    gerbong[$2] = 1
+    gerbong[$4] = 1
 }
 
 END {
