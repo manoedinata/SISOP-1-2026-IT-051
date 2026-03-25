@@ -1,5 +1,8 @@
 # SISOP Modul 1
 
+> [!NOTE]
+> Lapres belum selesai. Tunggu ya, mas mba... hehe
+
 <details>
 <summary>Daftar Isi</summary>
 
