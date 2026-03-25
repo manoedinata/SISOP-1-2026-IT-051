@@ -130,6 +130,7 @@ hapus_penghuni() {
 }
 
 tampilkan_penghuni() {
+    clear
     awk '
     BEGIN {
         # Set Field Separator menjadi koma
@@ -148,6 +149,22 @@ tampilkan_penghuni() {
         menunggak = 0
     }
 
+    # Fungsi format Rupiah di dalam AWK
+    function format_rp(angka) {
+        if (angka == 0 || angka == "") return "Rp0"
+        str_angka = angka ""
+        len = length(str_angka)
+        hasil = ""
+        for(i=1; i<=len; i++) {
+            hasil = hasil substr(str_angka, i, 1)
+            # Beri titik setiap kelipatan 3 dari belakang, kecuali di digit terakhir
+            if ((len - i) % 3 == 0 && i != len) {
+                hasil = hasil "."
+            }
+        }
+        return "Rp" hasil
+    }
+
     NR > 1 {
         # Abaikan baris kosong jika ada
         if ($0 ~ /^[[:space:]]*$/) next 
@@ -156,24 +173,9 @@ tampilkan_penghuni() {
         if ($5 == "Aktif") aktif++
         if ($5 == "Menunggak") menunggak++
 
-        # Format harga sewa ke format Rupiah (RpX.XXX.XXX)
-        harga = $3
-        len = length(harga)
-        harga_format = ""
-
-        for(i=1; i<=len; i++) {
-            harga_format = harga_format substr(harga, i, 1)
-            # Beri titik setiap kelipatan 3 dari belakang, kecuali di digit terakhir
-            if ((len - i) % 3 == 0 && i != len) {
-                harga_format = harga_format "."
-            }
-        }
-
-        harga_rp = "Rp" harga_format
-
         # Cetak Data
         # (No, Nama, Kamar, Harga_Rp, Status)
-        printf "%-3d | %-15s | %-7s | %-17s | %-10s\n", total, $1, $2, harga_rp, $5
+        printf "%-3d | %-15s | %-7s | %-17s | %-10s\n", total, $1, $2, format_rp($3), $5
     }
 
     END {
