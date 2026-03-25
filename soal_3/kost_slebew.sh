@@ -1,9 +1,7 @@
-#!/bin/bash
-# Hendra Manudinata
-# 5027251051 - Asisten SCRA
+# Hendra Manudinata - 5027251051
 
-# Mendapatkan direktori tempat script ini berada
-## Ref: https://askubuntu.com/questions/893911/when-writing-a-bash-script-how-do-i-get-the-absolute-path-of-the-location-of-th
+### Mendapatkan direktori tempat script ini berada
+### Ref: https://askubuntu.com/questions/893911/when-writing-a-bash-script-how-do-i-get-the-absolute-path-of-the-location-of-th
 SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 
 ### INITIALIZE WORKTREE
@@ -15,13 +13,14 @@ if [ ! -f "$DB_FILE" ]; then
     echo "Nama,Kamar,Harga Sewa,Tanggal Masuk,Status" >"$DB_FILE"
 fi
 
-LAPORAN_FILE="$SCRIPT_DIR/rekap/laporan_bulanan.txt"
-
 ### INITIALIZE SAMPAH
 SAMPAH_FILE="$SCRIPT_DIR/sampah/history_hapus.csv"
 if [ ! -f "$SAMPAH_FILE" ]; then
     echo "Nama,Kamar,Harga Sewa,Tanggal Masuk,Status" >"$SAMPAH_FILE"
 fi
+
+### INITIALIZE LAPORAN
+LAPORAN_FILE="$SCRIPT_DIR/rekap/laporan_bulanan.txt"
 
 ### INITIALIZE LOG
 LOG_FILE="$SCRIPT_DIR/log/tagihan.log"
