@@ -1,7 +1,7 @@
 ======================================
           LAPORAN KEUANGAN            
 ======================================
-Total pemasukan (Aktif) : Rp100.000
+Total pemasukan (Aktif) : Rp200.000
 Total tunggakan         : Rp0
 Jumlah kamar terisi     : 2
 -------------------------------------------------

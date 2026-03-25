@@ -25,6 +25,24 @@ LAPORAN_FILE="$SCRIPT_DIR/rekap/laporan_bulanan.txt"
 ### INITIALIZE LOG
 LOG_FILE="$SCRIPT_DIR/log/tagihan.log"
 
+##### FUNGSI HELPER AWK #####
+AWK_UTILS='
+# Fungsi format Rupiah di dalam AWK
+function format_rp(angka) {
+    if (angka == 0 || angka == "") return "Rp0"
+    str_angka = angka ""
+    len = length(str_angka)
+    hasil = ""
+    for(i=1; i<=len; i++) {
+        hasil = hasil substr(str_angka, i, 1)
+        if ((len - i) % 3 == 0 && i != len) {
+            hasil = hasil "."
+        }
+    }
+    return "Rp" hasil
+}
+'
+
 ##### FUNCTIONS #####
 tambah_penghuni() {
     echo "================================================="
@@ -130,7 +148,7 @@ hapus_penghuni() {
 
 tampilkan_penghuni() {
     clear
-    awk '
+    awk "$AWK_UTILS"'
     BEGIN {
         # Set Field Separator menjadi koma
         FS=","
@@ -146,22 +164,6 @@ tampilkan_penghuni() {
         total = 0
         aktif = 0
         menunggak = 0
-    }
-
-    # Fungsi format Rupiah di dalam AWK
-    function format_rp(angka) {
-        if (angka == 0 || angka == "") return "Rp0"
-        str_angka = angka ""
-        len = length(str_angka)
-        hasil = ""
-        for(i=1; i<=len; i++) {
-            hasil = hasil substr(str_angka, i, 1)
-            # Beri titik setiap kelipatan 3 dari belakang, kecuali di digit terakhir
-            if ((len - i) % 3 == 0 && i != len) {
-                hasil = hasil "."
-            }
-        }
-        return "Rp" hasil
     }
 
     NR > 1 {
@@ -204,13 +206,9 @@ update_status() {
     # Input status dengan pengecekan case-insensitive
     while true; do
         read -p "Masukkan Status Baru (Aktif/Menunggak): " status_baru
-        status_lower=$(echo "$status_baru" | tr '[:upper:]' '[:lower:]')
+        status_baru=${status_baru,,} # jadikan lowercase
 
-        if [ "$status_lower" == "aktif" ]; then
-            status_final="Aktif"
-            break
-        elif [ "$status_lower" == "menunggak" ]; then
-            status_final="Menunggak"
+        if [[ "$status_baru" == "aktif" || "$status_baru" == "menunggak" ]]; then
             break
         else
             echo -e "\n[!] Status tidak valid! Harap masukkan 'Aktif' atau 'Menunggak'.\n"
@@ -219,7 +217,7 @@ update_status() {
 
     # Gunakan AWK untuk menimpa kolom ke-5 berdasarkan nama
     # FS = Field Separator, OFS = Output Field Separator
-    awk -v nama="$nama_update" -v status="$status_final" '
+    awk -v nama="$nama_update" -v status="${status_baru^}" '
     BEGIN { FS=","; OFS="," }
     {
         if ($1 == nama) {
@@ -229,14 +227,14 @@ update_status() {
     }
     ' "$DB_FILE" >laporan_temp.csv && mv laporan_temp.csv "$DB_FILE"
 
-    echo -e "\n[√] Status $nama_update berhasil diubah menjadi: $status_final\n"
+    echo -e "\n[√] Status $nama_update berhasil diubah menjadi: ${status_baru^}\n"
 }
 
 cetak_laporan() {
     clear
 
     # Gunakan AWK untuk menghitung total dan mencetaknya ke file
-    awk -v file_out="$LAPORAN_FILE" '
+    awk -v file_out="$LAPORAN_FILE" "$AWK_UTILS"'
     BEGIN {
         FS=","
         total_aktif = 0
@@ -244,21 +242,6 @@ cetak_laporan() {
         jumlah_kamar = 0
         count_menunggak = 0
         daftar_menunggak = ""
-    }
-
-    # Fungsi format Rupiah di dalam AWK
-    function format_rp(angka) {
-        if (angka == 0 || angka == "") return "Rp0"
-        str_angka = angka ""
-        len = length(str_angka)
-        hasil = ""
-        for(i=1; i<=len; i++) {
-            hasil = hasil substr(str_angka, i, 1)
-            if ((len - i) % 3 == 0 && i != len) {
-                hasil = hasil "."
-            }
-        }
-        return "Rp" hasil
     }
 
     NR > 1 {
@@ -291,7 +274,7 @@ cetak_laporan() {
 
         # Cek apakah ada yang menunggak
         if (count_menunggak == 0) {
-            laporan = laporan "  Tidak ada, yey!.\n"
+            laporan = laporan "  Tidak ada, yey!\n"
         } else {
             laporan = laporan daftar_menunggak
         }
