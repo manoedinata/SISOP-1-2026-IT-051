@@ -2,8 +2,8 @@
 # Hendra Manudinata
 # 5027251051 - Asisten SCRA
 
-# Get the directory of the current script
-# https://askubuntu.com/questions/893911/when-writing-a-bash-script-how-do-i-get-the-absolute-path-of-the-location-of-th
+# Mendapatkan direktori tempat script ini berada
+## Ref: https://askubuntu.com/questions/893911/when-writing-a-bash-script-how-do-i-get-the-absolute-path-of-the-location-of-th
 SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 
 ### INITIALIZE WORKTREE
@@ -84,11 +84,12 @@ tambah_penghuni() {
     # Input Status & Validasi
     while true; do
         read -p "Masukkan Status Awal (Aktif/Menunggak): " status
+        status=${status,,} # jadikan lowercase
 
-        if [[ "$status" == "Aktif" || "$status" == "Menunggak" ]]; then
+        if [[ "$status" == "aktif" || "$status" == "menunggak" ]]; then
             break
         else
-            echo -e "\n[!] Status tidak valid! Harap ketik 'Aktif' atau 'Menunggak' (perhatikan huruf kapital).\n"
+            echo -e "\n[!] Status tidak valid! Harap ketik 'Aktif' atau 'Menunggak' (huruf kapital dibebaskan).\n"
         fi
     done
 
@@ -96,7 +97,7 @@ tambah_penghuni() {
     echo "$nama,$kamar,$harga,$tanggal,$status" >>"$DB_FILE"
 
     echo ""
-    echo "[√] Penghuni \"$nama\" berhasil ditambahkan ke Kamar $kamar dengan status $status."
+    echo "[√] Penghuni \"$nama\" berhasil ditambahkan ke Kamar $kamar dengan status ${status^}." # ${status^} untuk kapitalisasi pertama
     echo ""
 }
 
@@ -196,7 +197,6 @@ update_status() {
     # format regex: ^nama,
     if ! grep -q "^${nama_update}," "$DB_FILE"; then
         echo -e "\n[x] Penghuni dengan nama \"$nama_update\" tidak ditemukan.\n"
-        read -p "Tekan [ENTER] untuk kembali ke menu..."
         return
     fi
 
@@ -229,7 +229,6 @@ update_status() {
     ' "$DB_FILE" >laporan_temp.csv && mv laporan_temp.csv "$DB_FILE"
 
     echo -e "\n[√] Status $nama_update berhasil diubah menjadi: $status_final\n"
-    read -p "Tekan [ENTER] untuk kembali ke menu..."
 }
 
 cetak_laporan() {
@@ -283,7 +282,6 @@ cetak_laporan() {
     ' "$DB_FILE"
 
     echo ""
-    read -p "Tekan [ENTER] untuk kembali ke menu..."
 }
 
 ##### END OF FUNCTIONS #####
