@@ -233,9 +233,6 @@ update_status() {
 
 cetak_laporan() {
     clear
-    echo "================================================="
-    echo "             CETAK LAPORAN KEUANGAN              "
-    echo "================================================="
 
     # Gunakan AWK untuk menghitung total dan mencetaknya ke file
     awk -v file_out="$LAPORAN_FILE" '
@@ -243,11 +240,14 @@ cetak_laporan() {
         FS=","
         total_aktif = 0
         total_menunggak = 0
+        jumlah_kamar = 0
+        count_menunggak = 0
+        daftar_menunggak = ""
     }
 
     # Fungsi format Rupiah di dalam AWK
     function format_rp(angka) {
-        if (angka == 0) return "0"
+        if (angka == 0 || angka == "") return "Rp0"
         str_angka = angka ""
         len = length(str_angka)
         hasil = ""
@@ -261,23 +261,48 @@ cetak_laporan() {
     }
 
     NR > 1 {
-        if ($5 == "Aktif") total_aktif += $3
-        if ($5 == "Menunggak") total_menunggak += $3
+        # Abaikan baris kosong jika ada
+        if ($0 ~ /^[[:space:]]*$/) next
+
+        jumlah_kamar++
+        
+        if ($5 == "Aktif") {
+            total_aktif += $3
+        } else if ($5 == "Menunggak") {
+            total_menunggak += $3
+            daftar_menunggak = daftar_menunggak "  - " $1 " (Kamar " $2 ")\n"
+            count_menunggak++
+        }
     }
 
     END {
-        print "=================================================" > file_out
-        print "            LAPORAN KEUANGAN BULANAN             " > file_out
-        print "=================================================" > file_out
-        print "Total Pemasukan (Aktif)   : " format_rp(total_aktif) > file_out
-        print "Total Tunggakan (Menunggak): " format_rp(total_menunggak) > file_out
-        print "=================================================" > file_out
+        # Siapkan teks laporan
+        laporan = ""
+        laporan = laporan "======================================\n"
+        laporan = laporan "          LAPORAN KEUANGAN            \n"
+        laporan = laporan "======================================\n"
+        laporan = laporan sprintf("%-24s: %s\n", "Total pemasukan (Aktif)", format_rp(total_aktif))
+        laporan = laporan sprintf("%-24s: %s\n", "Total tunggakan", format_rp(total_menunggak))
+        laporan = laporan sprintf("%-24s: %d\n", "Jumlah kamar terisi", jumlah_kamar)
+        laporan = laporan "-------------------------------------------------\n"
+        laporan = laporan "\n"
+        laporan = laporan "Daftar penghuni menunggak:\n"
+
+        # Cek apakah ada yang menunggak
+        if (count_menunggak == 0) {
+            laporan = laporan "  Tidak ada, yey!.\n"
+        } else {
+            laporan = laporan daftar_menunggak
+        }
         
-        # Tampilkan juga di terminal
-        print "[OK] Laporan berhasil dibuat dan disimpan di: " file_out
-        print ""
-        print "Total Pemasukan (Aktif)   : " format_rp(total_aktif)
-        print "Total Tunggakan (Menunggak): " format_rp(total_menunggak)
+        laporan = laporan "=================================================\n"
+
+        # Simpan teks ke file
+        printf "%s", laporan > file_out
+        
+        # Tampilkan teks
+        printf "%s\n", laporan
+        print "[√] Laporan berhasil disimpan ke " file_out
     }
     ' "$DB_FILE"
 
