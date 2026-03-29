@@ -1,8 +1,5 @@
 # SISOP Modul 1
 
-> [!NOTE]
-> Lapres belum selesai. Tunggu ya, mas mba... hehe
-
 <details>
 <summary>Daftar Isi</summary>
 
@@ -18,6 +15,8 @@
       - [Soal c: Cari penumpang tertua](#soal-c-cari-penumpang-tertua)
       - [Soal d: Rata-rata usia penumpang](#soal-d-rata-rata-usia-penumpang)
       - [Soal e: Jumlah penumpang Business Class](#soal-e-jumlah-penumpang-business-class)
+    - [Kendala](#kendala)
+    - [Revisi](#revisi)
   - [Soal 2: Ekspedisi Pesugihan Gunung Kawi](#soal-2-ekspedisi-pesugihan-gunung-kawi)
     - [Screenshot](#screenshot-1)
     - [Deskripsi Soal](#deskripsi-soal-1)
@@ -31,6 +30,8 @@
       - [Ekstrak informasi](#ekstrak-informasi)
       - [Hitung Titik Tengah](#hitung-titik-tengah)
       - [Hasil Akhir](#hasil-akhir)
+    - [Kendala](#kendala-1)
+    - [Revisi](#revisi-1)
   - [Soal 3: Kost Slebew](#soal-3-kost-slebew)
     - [Screenshot](#screenshot-2)
     - [Deskripsi Soal](#deskripsi-soal-2)
@@ -44,6 +45,8 @@
         - [6.1. Lihat Cron Job Aktif](#61-lihat-cron-job-aktif)
         - [6.2. Tambah Jadwal Pengingat](#62-tambah-jadwal-pengingat)
         - [6.3. Hapus Jadwal Pengingat](#63-hapus-jadwal-pengingat)
+    - [Kendala](#kendala-2)
+    - [Revisi](#revisi-2)
 
 </details>
 
@@ -158,9 +161,20 @@ END {
 }
 ```
 
+### Kendala
+
+- Sedikit bingung mengenai argument parsing pada AWK. Penyelesaiannya menggunakan ARGV untuk mengambil argument soal yang ingin dijalankan.
+- File CSV belum dijadikan UNIX format, sehingga ada karakter carriage return (`\r`) yang menyebabkan output soal B menjadi 5, padahal seharusnya 4. Solusinya adalah dengan mengkonversi file CSV ke format UNIX menggunakan `dos2unix`.
+
+### Revisi
+
+- Convert file CSV ke format UNIX untuk menghilangkan karakter carriage return (`\r`) yang menyebabkan output soal B menjadi 5, padahal seharusnya 4.
+
 ## Soal 2: Ekspedisi Pesugihan Gunung Kawi
 
 ### Screenshot
+
+![screenshot](assets/soal_2/image_6.png)
 
 ### Deskripsi Soal
 
@@ -226,7 +240,8 @@ $ cd peta-gunung-kawi/
 
 #### Analisis JSON
 
-File JSON:
+<details>
+<summary>File JSON (klik untuk buka):</summary>
 
 ```json
 {
@@ -308,6 +323,8 @@ File JSON:
 }
 ```
 
+</details>
+
 #### Ekstrak informasi
 
 Key yang kita butuhkan adalah `id`, `properties.site_name`, `properties.latitude`, dan `properties.longitude`. Kita bisa mengunakan `awk`, `grep`, dan `sed` untuk mengekstrak informasi ini.
@@ -377,6 +394,16 @@ echo "$lat_tengah,$lon_tengah" > posisipusaka.txt
 $ cat posisipusaka.txt
 -7.929980,112.459050
 ```
+
+### Kendala
+
+- Awalnya sempat bingung untuk mengekstrak informasi dari file JSON menggunakan bash, karena format JSON yang cukup kompleks. Solusinya adalah dengan menggunakan kombinasi `grep`, `sed`, dan `awk` untuk memfilter dan memformat data yang kita butuhkan.
+- Sedikit bingung menghitung titik tengah dari koordinat, karena kita perlu memastikan bahwa kita mengambil titik yang benar (titik 1 dan titik 3 yang berseberangan) dan menggunakan rumus rata-rata dengan benar.
+- Karena `peta-gunung-kawi` adalah repositori Git, maka agar repositori ini bisa di-push ke GitHub tanpa menggunakan submodule, kita perlu menghapus folder `.git` di dalam `peta-gunung-kawi` setelah proses clone.
+
+### Revisi
+
+_Belum ada revisi untuk soal 2._
 
 ## Soal 3: Kost Slebew
 
@@ -723,3 +750,20 @@ Setelah pengguna memasukkan jam dan menit untuk pengingat, script akan terlebih 
 ```
 
 Untuk menghapus jadwal pengingat, script akan mengambil semua cron job yang ada dan memfilter keluar cron job yang terkait dengan script kita menggunakan `grep -v`, lalu mendaftarkan ulang cron job yang tersisa. Setelah itu, akan menampilkan pesan bahwa cron job berhasil dihapus.
+
+### Kendala
+
+- Validasi tanggal masuk sedikit tricky karena kita perlu memastikan bahwa tanggal yang dimasukkan tidak melebihi hari ini. Solusinya adalah dengan mengkonversi tanggal input dan tanggal hari ini ke dalam format UNIX timestamp (detik) untuk memudahkan perbandingan.
+- Awalnya sempat bingung untuk mengelola cron job melalui script, terutama untuk memastikan bahwa kita tidak membuat duplikasi cron job setiap kali menambahkan jadwal baru. Solusinya adalah dengan terlebih dahulu menghapus cron job lama yang terkait dengan script sebelum menambahkan yang baru.
+- Isi script yang cukup panjang akibat kode AWK yang repetitif. Solusinya adalah dengan memisah helper function (`formatRp()`) dan meng-inject-nya ke dalam script utama, sehingga kode utama menjadi lebih bersih dan mudah dibaca.
+
+### Revisi
+
+Revisi soal 3 dilakukan pada commit [cedd20a](https://github.com/manoedinata/SISOP-1-2026-IT-051/commit/cedd20ae069ff4bc00ddcdc3342345bd2cde9550):
+
+- Perjelas beberapa komentar
+- Simplify beberapa syntax grep
+- Refactor CSV handling
+- Perbaiki beberapa syntax AWK
+- Inject awk dengan fungsi pembantu
+- Simplify case-insensitive handling
